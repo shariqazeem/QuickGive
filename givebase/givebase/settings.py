@@ -14,6 +14,7 @@ ALLOWED_HOSTS = [
     "umanity.xyz",
     "www.umanity.xyz",
     "miniapp.umanity.xyz",
+    "givebase.umanity.xyz",
     "127.0.0.1",  # Optional for local testing
     "localhost"
 ]
@@ -23,6 +24,8 @@ CSRF_TRUSTED_ORIGINS = [
     "https://umanity.xyz",
     "https://www.umanity.xyz",
     "https://miniapp.umanity.xyz",
+    "https://givebase.umanity.xyz",
+    "http://givebase.umanity.xyz",  # Remove after SSL setup
 ]
 
 # Use secure cookies in production
@@ -125,7 +128,8 @@ CORS_ALLOWED_ORIGINS = [
     "https://umanity.xyz",
     "https://www.umanity.xyz",
     "https://miniapp.umanity.xyz",
-    "https://keys.coinbase.com",  # ADD THIS
+    "https://givebase.umanity.xyz",
+    "https://keys.coinbase.com",
     "http://localhost:8000",      # For local testing
     "http://127.0.0.1:8000",
     "http://localhost:3000",  # Next.js dev server
