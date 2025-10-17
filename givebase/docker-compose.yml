@@ -1,7 +1,7 @@
 services:
   backend:
     build: .
-    container_name: givebase_backend
+    container_name: quickgive_backend
     volumes:
       - .:/app
     expose:
@@ -11,14 +11,14 @@ services:
 
   frontend:
     build:
-      context: ./givebase
-    container_name: givebase_frontend
+      context: ./quickgive
+    container_name: quickgive_frontend
     expose:
       - 3000
 
   nginx:
     image: nginx:alpine
-    container_name: givebase_nginx
+    container_name: quickgive_nginx
     ports:
       - "80:80"
       - "443:443"
@@ -32,7 +32,7 @@ services:
 
   certbot:
     image: certbot/certbot
-    container_name: givebase_certbot
+    container_name: quickgive_certbot
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt
       - /var/www/certbot:/var/www/certbot
