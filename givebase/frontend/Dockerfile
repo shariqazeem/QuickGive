@@ -1,0 +1,13 @@
+# Use Debian-based Node image instead of Alpine
+FROM node:20-bullseye
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
