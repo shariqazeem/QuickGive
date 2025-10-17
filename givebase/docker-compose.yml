@@ -1,0 +1,42 @@
+services:
+  backend:
+    build: .
+    container_name: givebase_backend
+    volumes:
+      - .:/app
+    expose:
+      - 8000
+    env_file:
+      - .env
+
+  frontend:
+    build:
+      context: ./givebase
+    container_name: givebase_frontend
+    expose:
+      - 3000
+
+  nginx:
+    image: nginx:alpine
+    container_name: givebase_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - /etc/letsencrypt:/etc/letsencrypt
+      - /var/www/certbot:/var/www/certbot
+    depends_on:
+      - backend
+      - frontend
+
+  certbot:
+    image: certbot/certbot
+    container_name: givebase_certbot
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
+      - /var/www/certbot:/var/www/certbot
+    entrypoint: >
+      sh -c "certbot certonly --webroot --webroot-path=/var/www/certbot
+      --email shariqshaukat786@gmail.com --agree-tos --no-eff-email
+      -d umanity.xyz -d www.umanity.xyz -d miniapp.umanity.xyz"

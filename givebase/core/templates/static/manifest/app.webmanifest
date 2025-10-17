@@ -1,0 +1,24 @@
+{
+  "name": "Umanity Donation App",
+  "short_name": "Umanity App",
+  "description": "Connect wallet and donate crypto to global causes",
+  "start_url": "/app/",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/static/images/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/images/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["finance", "productivity", "social"],
+  "lang": "en",
+  "scope": "/app/"
+}

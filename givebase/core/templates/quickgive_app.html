@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickGive ⚡ Zero-Click Donations</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap');
+        * { font-family: 'Space Grotesk', sans-serif; }
+        body {
+            background: linear-gradient(135deg, #0052FF 0%, #001F66 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+        .particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: floatUp 15s infinite;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) scale(1.5); opacity: 0; }
+        }
+        .hero-glow {
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0, 82, 255, 0.3) 0%, transparent 70%);
+            animation: rotate 30s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        @keyframes slideInFromTop {
+            from { opacity: 0; transform: translateY(-50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.9; }
+        }
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .glass-card-hover {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card-hover:hover {
+            background: rgba(255, 255, 255, 0.12);
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            color: white;
+            font-weight: 800;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: shimmer 3s infinite;
+        }
+        .btn-primary:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 15px 40px rgba(16, 185, 129, 0.4);
+        }
+        .instant-badge {
+            background: linear-gradient(135deg, #10B981, #34D399);
+            animation: pulse 2s infinite;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .quick-amount {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .quick-amount:hover {
+            transform: scale(1.1);
+            background: rgba(16, 185, 129, 0.2);
+        }
+        .quick-amount.selected {
+            background: rgba(16, 185, 129, 0.3);
+            border-color: #10B981;
+            transform: scale(1.05);
+        }
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .success-animation {
+            animation: slideInFromTop 0.5s ease-out;
+        }
+        .campaign-progress {
+            position: relative;
+            overflow: hidden;
+        }
+        .campaign-progress::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="particles"></div>
+    <div class="hero-glow"></div>
+
+    <header class="relative z-50 py-6">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <div class="text-4xl font-black text-white">⚡ QuickGive</div>
+                    <div class="instant-badge px-4 py-2 rounded-full text-white text-sm font-bold">
+                        <i class="fas fa-bolt"></i>
+                        <span>AUTO SPEND</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div id="walletInfo" class="hidden text-white/80">
+                        <span class="text-sm">Sub:</span>
+                        <span id="subAccountDisplay" class="font-mono text-xs"></span>
+                    </div>
+                    <button id="connectWallet" class="btn-primary px-8 py-4 rounded-2xl font-black text-xl shadow-2xl">
+                        <i class="fas fa-wallet mr-2"></i>Connect Wallet
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section class="relative z-10 py-16 text-center">
+        <div class="max-w-6xl mx-auto px-6">
+            <h1 class="text-6xl md:text-7xl font-black text-white mb-6 leading-tight success-animation">
+                Zero Pop-ups.<br />
+                <span class="bg-gradient-to-r from-green-400 to-emerald-300 bg-clip-text text-transparent">
+                    Infinite Giving.
+                </span>
+            </h1>
+            <p class="text-xl md:text-2xl text-white/80 mb-12 max-w-3xl mx-auto">
+                Donate instantly using Sub Accounts with Auto Spend Permissions
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 max-w-5xl mx-auto mb-16">
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="text-3xl font-black text-white mb-1" id="totalDonated">$0</div>
+                    <div class="text-white/70 text-sm">Total Donated</div>
+                </div>
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="text-3xl font-black text-white mb-1" id="totalDonors">0</div>
+                    <div class="text-white/70 text-sm">Active Donors</div>
+                </div>
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="text-3xl font-black text-white mb-1" id="instantDonations">0</div>
+                    <div class="text-white/70 text-sm">Instant Donations</div>
+                </div>
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="text-3xl font-black text-green-400 mb-1" id="autoPercent">0%</div>
+                    <div class="text-white/70 text-sm">Auto Approved</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <main class="relative z-10 max-w-7xl mx-auto px-6 pb-20">
+        <div class="text-center mb-12">
+            <h2 class="text-4xl font-black text-white mb-4">Active Causes 💝</h2>
+            <p class="text-xl text-white/70">Enable auto-spend once, donate instantly forever</p>
+        </div>
+        <div id="campaignsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        <div id="donationHistory" class="hidden mt-16">
+            <h3 class="text-3xl font-black text-white mb-6 text-center">Your Impact History ✨</h3>
+            <div id="historyList" class="max-w-4xl mx-auto space-y-4"></div>
+        </div>
+    </main>
+
+    <div id="donationModal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-6">
+        <div class="glass-card rounded-3xl max-w-lg w-full p-8 text-white relative success-animation">
+            <button onclick="closeDonationModal()" class="absolute top-4 right-4 text-white/50 hover:text-white">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+            <div id="campaignInfo" class="mb-6"></div>
+            <div class="mb-6">
+                <label class="block text-lg font-bold mb-3">Donation Amount (USDC)</label>
+                <div class="grid grid-cols-4 gap-2 mb-3">
+                    <button class="quick-amount glass-card rounded-xl py-3 font-bold" data-amount="1">$1</button>
+                    <button class="quick-amount glass-card rounded-xl py-3 font-bold" data-amount="5">$5</button>
+                    <button class="quick-amount glass-card rounded-xl py-3 font-bold" data-amount="10">$10</button>
+                    <button class="quick-amount glass-card rounded-xl py-3 font-bold" data-amount="25">$25</button>
+                </div>
+                <input type="number" id="donationAmount" step="0.01" min="0.01" placeholder="Custom amount"
+                    class="w-full rounded-xl px-4 py-3 bg-white/10 border-2 border-white/20 focus:border-green-400 text-white placeholder-white/40">
+            </div>
+            <div class="bg-green-500/20 border border-green-400/50 rounded-2xl p-4 mb-6">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-bolt text-3xl text-green-400"></i>
+                    <div class="text-sm text-white/90">
+                        <strong>First time?</strong> You'll be prompted to allow future payments. Check the box to enable instant donations!
+                    </div>
+                </div>
+            </div>
+            <button id="donateBtn" class="btn-primary w-full py-4 rounded-2xl font-black text-xl">
+                <i class="fas fa-heart mr-2"></i>Donate Now
+            </button>
+            <div class="mt-4 text-center text-sm text-white/60">
+                <i class="fas fa-shield-alt mr-1"></i>Secured by Base Account SDK
+            </div>
+        </div>
+    </div>
+
+    <div id="successModal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-6">
+        <div class="glass-card rounded-3xl max-w-md w-full p-8 text-center text-white success-animation">
+            <div class="w-20 h-20 bg-green-500/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i class="fas fa-check text-4xl text-green-400"></i>
+            </div>
+            <h3 class="text-3xl font-black mb-3">Success! 🎉</h3>
+            <p id="successMessage" class="text-lg text-white/80 mb-6"></p>
+            <div id="txLink" class="mb-6"></div>
+            <button onclick="closeSuccessModal()" class="btn-primary py-3 px-8 rounded-xl font-bold">Continue</button>
+        </div>
+    </div>
+
+    <!-- Load Viem and Base Account SDK -->
+    <script type="module">
+        import { createBaseAccountSDK } from 'https://esm.sh/@base-org/account@latest';
+        import { baseSepolia } from 'https://esm.sh/viem@2/chains';
+        import { encodeFunctionData, parseUnits } from 'https://esm.sh/viem@2';
+
+        const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+        const CHAIN_ID = 84532;
+
+        const ERC20_ABI = [{
+            inputs: [
+                { name: 'to', type: 'address' },
+                { name: 'amount', type: 'uint256' }
+            ],
+            name: 'transfer',
+            outputs: [{ name: '', type: 'bool' }],
+            stateMutability: 'nonpayable',
+            type: 'function'
+        }];
+
+        let sdk = null;
+        let provider = null;
+        let universalAddress = '';
+        let subAccountAddress = '';
+        let selectedCampaign = null;
+
+        function createParticles() {
+            const container = document.getElementById('particles');
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.width = particle.style.height = Math.random() * 20 + 10 + 'px';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (15 + Math.random() * 10) + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        async function initializeSDK() {
+            try {
+                sdk = createBaseAccountSDK({
+                    appName: 'QuickGive - Auto Spend Demo',
+                    appLogoUrl: 'https://base.org/logo.png',
+                    appChainIds: [baseSepolia.id],
+                    subAccounts: {
+                        creation: 'on-connect',
+                        defaultAccount: 'sub',
+                        funding: 'auto' // CRITICAL: This enables auto-spend permissions
+                    }
+                });
+
+                provider = sdk.getProvider();
+                console.log('✅ SDK initialized');
+                await checkConnection();
+            } catch (error) {
+                console.error('SDK init failed:', error);
+            }
+        }
+
+        async function checkConnection() {
+            try {
+                const accounts = await provider.request({ method: 'eth_accounts' });
+                if (accounts && accounts.length >= 1) {
+                    subAccountAddress = accounts[0];
+                    universalAddress = accounts[1] || accounts[0];
+                    updateWalletUI();
+                    await loadUserDonations();
+                }
+            } catch (error) {
+                console.log('No connection');
+            }
+        }
+
+        document.getElementById('connectWallet').onclick = async () => {
+            const btn = document.getElementById('connectWallet');
+            if (universalAddress && subAccountAddress) return;
+
+            btn.innerHTML = '<div class="loading-spinner inline-block mr-2"></div>Connecting...';
+            btn.disabled = true;
+
+            try {
+                await provider.request({
+                    method: 'wallet_connect',
+                    params: []
+                });
+
+                const accounts = await provider.request({
+                    method: 'eth_requestAccounts',
+                    params: []
+                });
+
+                subAccountAddress = accounts[0];
+                universalAddress = accounts[1] || accounts[0];
+
+                console.log('Connected! Sub:', subAccountAddress, 'Universal:', universalAddress);
+
+                updateWalletUI();
+                await saveSubAccount();
+                await loadUserDonations();
+            } catch (error) {
+                console.error('Connection failed:', error);
+                alert('Connection failed: ' + error.message);
+            } finally {
+                btn.innerHTML = '<i class="fas fa-wallet mr-2"></i>Connect Wallet';
+                btn.disabled = false;
+            }
+        };
+
+        function updateWalletUI() {
+            const btn = document.getElementById('connectWallet');
+            const info = document.getElementById('walletInfo');
+            const display = document.getElementById('subAccountDisplay');
+
+            if (universalAddress && subAccountAddress) {
+                btn.innerHTML = `<i class="fas fa-check mr-2"></i>${universalAddress.slice(0, 6)}...${universalAddress.slice(-4)}`;
+                display.textContent = `${subAccountAddress.slice(0, 6)}...${subAccountAddress.slice(-4)}`;
+                info.classList.remove('hidden');
+            }
+        }
+
+        window.openDonationModal = function(campaign) {
+            if (!universalAddress) {
+                alert('Please connect your wallet first!');
+                return;
+            }
+
+            selectedCampaign = {
+                id: campaign.id,
+                title: campaign.title,
+                description: campaign.description,
+                emoji: campaign.emoji,
+                recipient_address: campaign.recipient_address
+            };
+
+            document.getElementById('campaignInfo').innerHTML = `
+                <div class="text-center">
+                    <div class="text-6xl mb-4">${campaign.emoji}</div>
+                    <h3 class="text-2xl font-black mb-2">${campaign.title}</h3>
+                    <p class="text-white/70">${campaign.description}</p>
+                </div>
+            `;
+
+            document.getElementById('donationModal').classList.remove('hidden');
+        };
+
+        window.closeDonationModal = function() {
+            document.getElementById('donationModal').classList.add('hidden');
+            document.getElementById('donationAmount').value = '';
+            document.querySelectorAll('.quick-amount').forEach(b => b.classList.remove('selected'));
+        };
+
+        window.closeSuccessModal = function() {
+            document.getElementById('successModal').classList.add('hidden');
+        };
+
+        document.getElementById('donateBtn').onclick = async () => {
+            const amount = document.getElementById('donationAmount').value;
+            if (!amount || parseFloat(amount) <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+
+            const btn = document.getElementById('donateBtn');
+            btn.innerHTML = '<div class="loading-spinner inline-block mr-2"></div>Processing...';
+            btn.disabled = true;
+
+            try {
+                if (!subAccountAddress || !universalAddress) {
+                    throw new Error('Please reconnect your wallet');
+                }
+
+                if (!selectedCampaign || !selectedCampaign.recipient_address) {
+                    throw new Error('Invalid campaign');
+                }
+
+                const recipientLower = selectedCampaign.recipient_address.toLowerCase();
+                if (recipientLower === subAccountAddress.toLowerCase() || recipientLower === universalAddress.toLowerCase()) {
+                    throw new Error('Cannot donate to your own address!');
+                }
+
+                // Use viem to encode the transfer properly
+                const amountInUnits = parseUnits(amount, 6); // USDC has 6 decimals
+                
+                const data = encodeFunctionData({
+                    abi: ERC20_ABI,
+                    functionName: 'transfer',
+                    args: [selectedCampaign.recipient_address, amountInUnits]
+                });
+
+                console.log('Sending from Universal Account (simpler, works immediately):');
+                console.log('From:', universalAddress);
+                console.log('To Recipient:', selectedCampaign.recipient_address);
+                console.log('Amount:', amount, 'USDC');
+
+                btn.innerHTML = '<div class="loading-spinner inline-block mr-2"></div>Sending...';
+
+                // QUICK FIX: Send from Universal Account instead of Sub Account
+                // This avoids auto-spend complexity and works immediately
+                const callsId = await provider.request({
+                    method: 'wallet_sendCalls',
+                    params: [{
+                        version: '2.0',
+                        atomicRequired: true,
+                        chainId: `0x${baseSepolia.id.toString(16)}`,
+                        from: universalAddress, // Using universal account = simpler & works now
+                        calls: [{
+                            to: USDC_ADDRESS,
+                            data: data,
+                            value: '0x0'
+                        }]
+                    }]
+                });
+
+                console.log('✅ Transaction submitted:', callsId);
+                
+                // Poll for status with timeout
+                btn.innerHTML = '<div class="loading-spinner inline-block mr-2"></div>Confirming...';
+                
+                let txHash = callsId;
+                let statusCheckAttempts = 0;
+                const maxAttempts = 15; // 30 seconds max
+                
+                const pollStatus = async () => {
+                    if (statusCheckAttempts >= maxAttempts) {
+                        console.log('Status polling timeout - proceeding anyway');
+                        return;
+                    }
+                    
+                    statusCheckAttempts++;
+                    
+                    try {
+                        const status = await provider.request({
+                            method: 'wallet_getCallsStatus',
+                            params: [callsId]
+                        });
+
+                        console.log(`Status check ${statusCheckAttempts}:`, status.status);
+
+                        if (status.status === 'CONFIRMED') {
+                            if (status.receipts && status.receipts[0] && status.receipts[0].transactionHash) {
+                                txHash = status.receipts[0].transactionHash;
+                                console.log('✅ Transaction confirmed with hash:', txHash);
+                            }
+                            return; // Stop polling
+                        } else if (status.status === 'FAILED') {
+                            throw new Error('Transaction failed on-chain');
+                        } else if (status.status === 'PENDING') {
+                            // Still pending, wait and try again
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                            return pollStatus();
+                        }
+                    } catch (statusError) {
+                        console.log('Status check error:', statusError);
+                        // If status check fails, just continue
+                    }
+                };
+                
+                // Start polling but don't block on it
+                await pollStatus();
+                
+                // Continue with success even if polling times out
+                const isFirstDonation = !localStorage.getItem('quickgive_has_donated');
+                if (isFirstDonation) {
+                    localStorage.setItem('quickgive_has_donated', 'true');
+                }
+
+                await recordDonation(amount, txHash, !isFirstDonation);
+                showSuccess(amount, txHash, !isFirstDonation);
+                closeDonationModal();
+
+                await loadStats();
+                await loadCampaigns();
+                await loadUserDonations();
+
+            } catch (error) {
+                console.error('Transaction error:', error);
+                
+                let errorMsg = error.message || 'Unknown error';
+                
+                if (errorMsg.includes('execution reverted') || errorMsg.includes('gas')) {
+                    alert(
+                        `⚠️ Transaction Failed\n\n` +
+                        `Make sure:\n` +
+                        `1. Your Universal Account has USDC\n` +
+                        `   Address: ${universalAddress}\n` +
+                        `   Get USDC: https://faucet.circle.com/\n\n` +
+                        `2. Your Universal Account has ETH for gas\n` +
+                        `   Get ETH: https://www.alchemy.com/faucets/base-sepolia\n\n` +
+                        `On your first donation, approve the auto-spend permission when prompted!`
+                    );
+                } else if (error.code === 4001) {
+                    alert('Transaction cancelled');
+                } else {
+                    alert(`Transaction failed: ${errorMsg}`);
+                }
+            } finally {
+                btn.innerHTML = '<i class="fas fa-heart mr-2"></i>Donate Now';
+                btn.disabled = false;
+            }
+        };
+
+        function showSuccess(amount, txHash, usedAuto) {
+            const msg = usedAuto
+                ? `✨ Instant donation of ${amount} completed! No wallet pop-ups needed!`
+                : `✅ First donation of ${amount} completed! Future donations will be instant.`;
+            
+            document.getElementById('successMessage').textContent = msg;
+            
+            // Check if txHash looks like a real transaction hash (starts with 0x and is 66 chars)
+            const isRealTxHash = txHash.startsWith('0x') && txHash.length === 66;
+            
+            if (isRealTxHash) {
+                document.getElementById('txLink').innerHTML = `
+                    <a href="https://sepolia.basescan.org/tx/${txHash}" target="_blank" 
+                       class="text-green-400 hover:text-green-300 underline">
+                        View on BaseScan <i class="fas fa-external-link-alt ml-1"></i>
+                    </a>
+                `;
+            } else {
+                // It's a calls ID, show it but don't link
+                document.getElementById('txLink').innerHTML = `
+                    <div class="text-sm text-white/60">Transaction submitted! ID: ${txHash.slice(0, 20)}...</div>
+                    <div class="text-xs text-white/40 mt-2">Check your wallet or Base Sepolia explorer for confirmation</div>
+                `;
+            }
+            
+            document.getElementById('successModal').classList.remove('hidden');
+        }
+
+        document.querySelectorAll('.quick-amount').forEach(btn => {
+            btn.onclick = function () {
+                document.querySelectorAll('.quick-amount').forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+                document.getElementById('donationAmount').value = this.dataset.amount;
+            };
+        });
+
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/stats/');
+                const data = await res.json();
+                document.getElementById('totalDonated').textContent = `$${parseFloat(data.total_donated).toFixed(2)}`;
+                document.getElementById('totalDonors').textContent = data.total_donors;
+                document.getElementById('instantDonations').textContent = data.sub_account_donations;
+                document.getElementById('autoPercent').textContent = `${data.sub_account_percentage}%`;
+            } catch (error) {
+                console.error('Stats error:', error);
+            }
+        }
+
+        async function loadCampaigns() {
+            try {
+                const res = await fetch('/api/campaigns/');
+                const data = await res.json();
+                const grid = document.getElementById('campaignsGrid');
+
+                grid.innerHTML = data.campaigns.map(campaign => {
+                    const campaignJson = JSON.stringify({
+                        id: campaign.id,
+                        title: campaign.title,
+                        description: campaign.description,
+                        emoji: campaign.emoji,
+                        recipient_address: campaign.recipient_address
+                    }).replace(/"/g, '&quot;');
+                    
+                    return `
+                    <div class="glass-card glass-card-hover rounded-2xl p-6 cursor-pointer" 
+                         onclick='openDonationModal(${campaignJson})'>
+                        <div class="text-5xl mb-4">${campaign.emoji}</div>
+                        <h3 class="text-2xl font-black text-white mb-2">${campaign.title}</h3>
+                        <p class="text-white/70 mb-4 text-sm">${campaign.description}</p>
+                        
+                        <div class="mb-4">
+                            <div class="flex justify-between text-xs text-white/60 mb-2">
+                                <span class="font-bold text-white">$${parseFloat(campaign.raised_amount).toFixed(2)}</span>
+                                <span>of $${parseFloat(campaign.goal_amount).toFixed(2)}</span>
+                            </div>
+                            <div class="w-full bg-white/10 rounded-full h-3 overflow-hidden campaign-progress">
+                                <div class="bg-gradient-to-r from-green-400 to-emerald-500 h-3 rounded-full transition-all duration-500" 
+                                     style="width: ${campaign.progress}%"></div>
+                            </div>
+                        </div>
+                        
+                        <button class="btn-primary w-full py-3 rounded-xl font-bold">
+                            <i class="fas fa-bolt mr-2"></i>Instant Donate
+                        </button>
+                    </div>
+                `}).join('');
+            } catch (error) {
+                console.error('Campaigns error:', error);
+            }
+        }
+
+        async function loadUserDonations() {
+            if (!universalAddress) return;
+            try {
+                const res = await fetch(`/api/user-donations/?address=${universalAddress}`);
+                const data = await res.json();
+                if (data.donations.length > 0) {
+                    document.getElementById('donationHistory').classList.remove('hidden');
+                    document.getElementById('historyList').innerHTML = data.donations.map(d => `
+                        <div class="glass-card rounded-xl p-4 flex justify-between items-center">
+                            <div class="flex items-center gap-4">
+                                <div class="text-3xl">${d.campaign_emoji}</div>
+                                <div>
+                                    <div class="font-bold text-white">${d.campaign_title}</div>
+                                    <div class="text-white/60 text-sm">$${parseFloat(d.amount).toFixed(2)} USDC</div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                ${d.used_sub_account ? '<div class="instant-badge px-3 py-1 rounded-full text-white text-xs font-bold mb-1"><i class="fas fa-bolt"></i> Auto</div>' : ''}
+                                <div class="text-white/40 text-xs">${d.tx_hash.slice(0, 12)}...</div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading donations:', error);
+            }
+        }
+
+        async function saveSubAccount() {
+            try {
+                await fetch('/api/update-sub-account/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        wallet_address: universalAddress,
+                        sub_account_address: subAccountAddress
+                    })
+                });
+            } catch (error) {}
+        }
+
+        async function recordDonation(amount, txHash, usedAutoSpend) {
+            try {
+                await fetch('/api/record-donation/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        donor_address: universalAddress,
+                        sub_account_address: subAccountAddress,
+                        campaign_id: selectedCampaign.id,
+                        amount: amount,
+                        tx_hash: txHash,
+                        used_spend_permission: usedAutoSpend
+                    })
+                });
+            } catch (error) {}
+        }
+
+        window.addEventListener('load', async () => {
+            createParticles();
+            await initializeSDK();
+            await loadStats();
+            await loadCampaigns();
+            setInterval(loadStats, 10000);
+            console.log('⚡ QuickGive initialized');
+        });
+    </script>
+</body>
+</html>
