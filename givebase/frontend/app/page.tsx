@@ -4,6 +4,7 @@ import { createBaseAccountSDK } from '@base-org/account';
 import { useEffect, useState } from 'react';
 import { baseSepolia } from 'viem/chains';
 import { encodeFunctionData, parseUnits } from 'viem';
+const API_BASE_URL = process.env.NEXT_PUBLIC_DJANGO_API_URL || 'http://localhost:8000';
 
 const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
 const CHAIN_ID = 84532;
@@ -90,7 +91,7 @@ export default function QuickGive() {
 
   async function loadCampaigns() {
     try {
-      const res = await fetch('/api/campaigns');
+      const res = await fetch(`${API_BASE_URL}/api/campaigns/`);
       const data = await res.json();
       setCampaigns(data.campaigns || []);
     } catch (error) {
@@ -100,7 +101,7 @@ export default function QuickGive() {
 
   async function loadStats() {
     try {
-      const res = await fetch('/api/stats');
+      const res = await fetch(`${API_BASE_URL}/api/stats/`);
       const data = await res.json();
       setStats(data);
     } catch (error) {
@@ -108,9 +109,10 @@ export default function QuickGive() {
     }
   }
 
+
   async function loadUserDonations() {
     try {
-      const res = await fetch(`/api/user-donations?address=${universalAddress}`);
+      const res = await fetch(`${API_BASE_URL}/api/user-donations/?address=${universalAddress}`);
       const data = await res.json();
       setDonations(data.donations || []);
     } catch (error) {
@@ -120,13 +122,13 @@ export default function QuickGive() {
 
   async function connectWallet() {
     if (!provider) return;
-    
+
     setLoading(true);
     setStatus('Connecting...');
-    
+
     try {
       await provider.request({ method: 'wallet_connect', params: [] });
-      
+
       const accounts = await provider.request({
         method: 'eth_requestAccounts',
         params: []
@@ -134,13 +136,13 @@ export default function QuickGive() {
 
       const sub = accounts[0];
       const universal = accounts[1] || accounts[0];
-      
+
       setSubAccountAddress(sub);
       setUniversalAddress(universal);
       setStatus('Connected!');
 
       // Save sub account
-      await fetch('/api/update-sub-account', {
+      await fetch(`${API_BASE_URL}/api/update-sub-account/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -164,7 +166,7 @@ export default function QuickGive() {
     try {
       // Transfer 1 USDC from Universal to Sub Account
       const oneUSDC = parseUnits('1', 6);
-      
+
       const data = encodeFunctionData({
         abi: ERC20_ABI,
         functionName: 'transfer',
@@ -188,10 +190,10 @@ export default function QuickGive() {
 
       console.log('✅ Funding transaction sent:', callsId);
       setStatus('✅ Sub Account funded! You can now donate.');
-      
+
       // Wait a bit for the transaction to confirm
       await new Promise(resolve => setTimeout(resolve, 3000));
-      
+
     } catch (error: any) {
       console.error('Funding error:', error);
       setStatus('❌ Funding failed: ' + error.message);
@@ -208,7 +210,7 @@ export default function QuickGive() {
 
     try {
       const amountInUnits = parseUnits(amount, 6);
-      
+
       const data = encodeFunctionData({
         abi: ERC20_ABI,
         functionName: 'transfer',
@@ -220,7 +222,7 @@ export default function QuickGive() {
       console.log('Amount:', amount, 'USDC');
 
       let callsId;
-      
+
       try {
         callsId = await provider.request({
           method: 'wallet_sendCalls',
@@ -241,12 +243,12 @@ export default function QuickGive() {
         console.error('Send error type:', typeof sendError);
         console.error('Send error constructor:', sendError?.constructor?.name);
         console.error('Send error keys:', Object.keys(sendError || {}));
-        
+
         // Check for specific errors
         if (sendError?.code === 4001 || sendError?.code === 'ACTION_REJECTED') {
           throw new Error('User cancelled the transaction');
         }
-        
+
         // Gas estimation failure - check if it's a spend permission limit issue
         if (sendError?.message?.includes('execution reverted') || sendError?.message?.includes('gas')) {
           // Check total donations today
@@ -255,10 +257,10 @@ export default function QuickGive() {
             const today = new Date();
             return donationDate.toDateString() === today.toDateString();
           });
-          
+
           const totalToday = todaysDonations.reduce((sum, d) => sum + parseFloat(d.amount), 0);
           const newTotal = totalToday + parseFloat(amount);
-          
+
           if (newTotal > 10) {
             throw new Error(
               `Daily spend limit reached!\n\n` +
@@ -268,7 +270,7 @@ export default function QuickGive() {
               `Please wait until tomorrow or donate a smaller amount.`
             );
           }
-          
+
           throw new Error(
             'Transaction failed during gas estimation.\n\n' +
             'This usually means:\n' +
@@ -278,7 +280,7 @@ export default function QuickGive() {
             'Try refreshing the page and reconnecting your wallet.'
           );
         }
-        
+
         throw sendError || new Error('Transaction failed to send');
       }
 
@@ -288,15 +290,15 @@ export default function QuickGive() {
       let txHash = callsId;
       let statusCheckAttempts = 0;
       const maxAttempts = 15;
-      
+
       const pollStatus = async () => {
         if (statusCheckAttempts >= maxAttempts) {
           console.log('Status polling timeout - proceeding anyway');
           return;
         }
-        
+
         statusCheckAttempts++;
-        
+
         try {
           const status = await provider.request({
             method: 'wallet_getCallsStatus',
@@ -321,11 +323,11 @@ export default function QuickGive() {
           console.log('Status check error:', statusError);
         }
       };
-      
+
       await pollStatus();
 
       const isFirstDonation = donations.length === 0;
-      
+
       setSuccessMessage(
         isFirstDonation
           ? `✅ First donation of $${amount} completed! Future donations will be instant if you enabled auto-spend.`
@@ -334,9 +336,10 @@ export default function QuickGive() {
       setShowSuccess(true);
       setSelectedCampaign(null);
       setAmount('');
-      
+
       // Record donation
-      await fetch('/api/record-donation', {
+      // In donate function:
+      await fetch(`${API_BASE_URL}/api/record-donation/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -360,13 +363,13 @@ export default function QuickGive() {
         data: error?.data,
         stack: error?.stack
       });
-      
+
       // Check if user rejected
       if (error?.code === 4001 || error?.message?.includes('user rejected') || error?.message?.includes('User rejected')) {
         setStatus('❌ Transaction cancelled by user');
         return;
       }
-      
+
       if (error?.message?.includes('execution reverted') || error?.message?.includes('gas')) {
         setStatus(
           `⚠️ Transaction Failed\n\n` +
@@ -401,11 +404,11 @@ export default function QuickGive() {
               AUTO SPEND
             </span>
           </div>
-          
+
           <p className="text-xl md:text-2xl text-white/80 mb-8 max-w-3xl mx-auto">
             Zero Pop-ups. Infinite Giving.
           </p>
-          
+
           {!universalAddress ? (
             <button
               onClick={connectWallet}
@@ -487,7 +490,7 @@ export default function QuickGive() {
               <div className="text-5xl mb-4">{campaign.emoji}</div>
               <h3 className="text-2xl font-bold mb-2">{campaign.title}</h3>
               <p className="text-white/70 mb-4 text-sm">{campaign.description}</p>
-              
+
               <div className="mb-4">
                 <div className="flex justify-between text-xs text-white/60 mb-2">
                   <span className="font-bold text-white">
@@ -502,7 +505,7 @@ export default function QuickGive() {
                   />
                 </div>
               </div>
-              
+
               <button className="w-full bg-green-500 hover:bg-green-600 py-3 rounded-xl font-bold">
                 ⚡ Instant Donate
               </button>
@@ -557,7 +560,7 @@ export default function QuickGive() {
               >
                 ×
               </button>
-              
+
               <div className="text-center mb-6">
                 <div className="text-6xl mb-4">{selectedCampaign.emoji}</div>
                 <h3 className="text-2xl font-bold mb-2">{selectedCampaign.title}</h3>
@@ -571,11 +574,10 @@ export default function QuickGive() {
                     <button
                       key={amt}
                       onClick={() => setAmount(amt)}
-                      className={`py-3 rounded-xl font-bold transition-all ${
-                        amount === amt
-                          ? 'bg-green-500 scale-105'
-                          : 'bg-white/10 hover:bg-white/20'
-                      }`}
+                      className={`py-3 rounded-xl font-bold transition-all ${amount === amt
+                        ? 'bg-green-500 scale-105'
+                        : 'bg-white/10 hover:bg-white/20'
+                        }`}
                     >
                       ${amt}
                     </button>
@@ -596,7 +598,7 @@ export default function QuickGive() {
                 <div className="flex items-center gap-3">
                   <div className="text-3xl">⚡</div>
                   <div className="text-sm">
-                    <strong>First time?</strong> You'll be prompted to allow future payments. 
+                    <strong>First time?</strong> You'll be prompted to allow future payments.
                     Check "Allow payments for future transactions" to enable instant donations!
                   </div>
                 </div>

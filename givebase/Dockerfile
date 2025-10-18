@@ -23,14 +23,8 @@ RUN pip install --upgrade pip && \
 # Copy project
 COPY . /app/
 
-# Create staticfiles directory
-RUN mkdir -p /app/staticfiles
-
-# Collect static files (will run again in docker-compose, but good to have)
-RUN python manage.py collectstatic --noinput || true
-
 # Expose port
 EXPOSE 8000
 
-# Run gunicorn
-CMD ["gunicorn", "givebase.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
+# Run Django development server
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

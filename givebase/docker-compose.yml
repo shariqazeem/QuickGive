@@ -5,20 +5,16 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile.backend
+      dockerfile: Dockerfile
     container_name: givebase_backend
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             gunicorn givebase.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - ./:/app
-      - static_volume:/app/staticfiles
     ports:
       - "8000:8000"
     environment:
-      - DEBUG=False
-      - DJANGO_SETTINGS_MODULE=givebase.settings
+      - DEBUG=True
+      - PYTHONUNBUFFERED=1
     networks:
       - givebase_network
     restart: unless-stopped
@@ -29,37 +25,19 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: givebase_frontend
+    command: npm run dev -- --hostname 0.0.0.0
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     ports:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_DJANGO_API_URL=http://backend:8000
-      - NODE_ENV=production
     depends_on:
       - backend
     networks:
       - givebase_network
     restart: unless-stopped
-
-  # Nginx (Optional but recommended for production)
-  nginx:
-    image: nginx:alpine
-    container_name: givebase_nginx
-    ports:
-      - "8080:80"  # Changed to 8080 to avoid conflict with main domain
-      - "8443:443"  # Changed to 8443 to avoid conflict with main domain
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - static_volume:/static
-      - ./certs:/etc/nginx/certs:ro  # For SSL certificates
-    depends_on:
-      - backend
-      - frontend
-    networks:
-      - givebase_network
-    restart: unless-stopped
-
-volumes:
-  static_volume:
 
 networks:
   givebase_network:
